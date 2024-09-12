@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"reflect"
 
@@ -16,6 +15,7 @@ import (
 	"leadgen/utils/helper"
 	utilsheets "leadgen/utils/utilSheets"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"google.golang.org/api/option"
@@ -56,7 +56,10 @@ func init() {
 	}
 }
 
-func GenerateLead(w http.ResponseWriter, r *http.Request) {
+func GenerateLead(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
+
 	w.Header().Set("Content-Type", "application/json")
 
 	//HANDLING REQUEST BODY
@@ -121,7 +124,10 @@ func GenerateLead(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func UploadCSV(w http.ResponseWriter, r *http.Request) {
+func UploadCSV(c *gin.Context) {
+	r := c.Request
+	w := c.Writer
+
 	w.Header().Set("Content-Type", "application/json")
 
 	err := r.ParseMultipartForm(10 << 20)
@@ -141,7 +147,10 @@ func UploadCSV(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	query := `INSERT INTO attendee VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
+
+	query :=os.Getenv("UPLOAD_LEADGEN_QUERY")
+	fmt.Println(query)
+	fmt.Println(reflect.TypeOf(query))
 	for {
 		record, err := reader.Read()
 		if err == io.EOF {
@@ -151,19 +160,13 @@ func UploadCSV(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 		fmt.Println(record)
-		fmt.Println(len(record))
-		fmt.Println(reflect.TypeOf(record))
 
-		for j, i := range record {
-			fmt.Println(i, j)
-		}
-
-		res, err := db.Query(query, record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7], record[8], record[9], record[10], record[11], record[12], record[13], record[14], record[15], record[16], record[17], record[18], helper.GenerateSecurityToken(record[2]))
-		if res != nil {
+		_, err = db.Exec(query, record[0], helper.GenerateSecurityToken(record[2]), record[1], record[2], record[3], record[4], record[5], record[6], record[7], record[8], record[9], record[10])
+		if err != nil {
+			fmt.Println("error occuered")
 			log.Fatal(err)
 		}
 		fmt.Println()
-		break
 	}
 	fmt.Println(reflect.TypeOf(file))
 
